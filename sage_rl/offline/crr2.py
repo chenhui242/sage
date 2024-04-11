@@ -32,7 +32,7 @@ import sonnet as snt
 import tensorflow as tf
 import tree
 
-
+"""定义了一个名为RCRRLearner的类，它是一个循环CRR（Conditional Reward Redistribution）学习器的实现。这个学习器是RCRR代理的学习组件，用于从数据集中学习"""
 class RCRRLearner(core.Learner):
     """Recurrent CRR learner.
 
@@ -203,18 +203,18 @@ class RCRRLearner(core.Learner):
         
         self._walltime_timestamp = time.time()
 
-    
+    #定义了_step方法，用于执行一步训练更新。
     def _step(self, sample: reverb.ReplaySample) -> Dict[str, tf.Tensor]:
         # Transpose batch and sequence axes, i.e. [B, T, ...] to [T, B, ...].
         sample = tf2_utils.batch_to_sequence(sample)
-        observations = sample.observation
+        observations = sample.observation#提取样本的环境状态观察值、动作、奖励和折扣因子等等
         actions = sample.action
         rewards = sample.reward
         discounts = sample.discount
 
         dtype = rewards.dtype
 
-        # Cast the additional discount to match the environment discount dtype.
+        # Cast the additional discount to match the environment discount dtype.用额外的折扣因子来匹配折扣因子的数据类型
         discount = tf.cast(self._discount, dtype=discounts.dtype)
 
         
