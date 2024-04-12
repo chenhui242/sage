@@ -34,7 +34,7 @@ from ruamel.yaml import YAML
 yaml = YAML()
 
 
-# Set the GPU memory properly
+# Set the GPU memory properly正确的设置GPU的存储
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 physical_devices = tf.config.list_physical_devices('GPU')
 try:
@@ -43,7 +43,11 @@ except:
     # Invalid device or cannot modify virtual devices once initialized.
     pass
 
-
+"""定义了一个函数make_networks，函数根据输入的参数构建了两个网络：
+policy_network和critic_network。
+这两个网络包括了多个层，
+如actor_encoder、actor_neck、policy_lstms等，
+以及一些特定的网络头部，如actor_head、distributional_head等。"""
 def make_networks(
     action_spec: specs.BoundedArray,
     act_fn: str = "tanh",
@@ -53,7 +57,7 @@ def make_networks(
     vmin: float = 0.,
     vmax: float = 100.,
     num_atoms: int = 51,
-    nw_type: int = 1909,
+    nw_type: int = 1909,#根据nw_type参数的值，确定了网络的类型。如果nw_type等于1909，则根据act_fn的值选择激活函数
 
     p_enc_size: int = 256,
     p_mlp_size: int = 256,
@@ -77,7 +81,7 @@ def make_networks(
             act = tf.nn.leaky_relu
         else:
             act = tf.nn.relu
-
+    #构建相应的网络
         policy_lstm_sizes = [p_lstm_size for i in range(lstm_depth)]
         critic_lstm_sizes = [c_lstm_size for i in range(lstm_depth)]
 
@@ -105,7 +109,7 @@ def make_networks(
 
     else:
         raise NotImplementedError
-
+    #返回构建好的'policy'对应的值为policy_network，'critic'对应的值为critic_network两个网络。
     return {
         'policy': policy_network,
         'critic': critic_network,
@@ -193,7 +197,7 @@ def run_crr():
     print("envspec:", environment_spec.observations)
     print("actionspec:", environment_spec.actions)
 
-    # create policy and critic networks
+    # create policy and critic networks创建策略和批评网络
     if environment_name == 'tcp':
 
         nets = make_networks(environment_spec.actions,
