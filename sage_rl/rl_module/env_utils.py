@@ -12,7 +12,7 @@ try:
 except:
     pass
 
-
+#总的来说，这个函数根据不同的环境名称创建相应的环境实例，并对其进行必要的处理，以便在强化学习中使用。
 def make_env(environment_name, config):
 
     if 'cartpole' in environment_name:
