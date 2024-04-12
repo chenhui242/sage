@@ -28,7 +28,7 @@ FLAGS = flags.FLAGS
 
 
 def process_files(in_data_dir, out_dataset_name, config, files_dict, result_dir, thread_id):
-
+        #从配置中获取观测列、奖励列和先前动作列等信息
     obs_cols = config['tcpspec']['obs_cols']
     reward_cols = config['tcpspec']['reward_cols']
     # Original raw data's last two columns must be [reward, cwndrate (prev_action)]
@@ -37,6 +37,8 @@ def process_files(in_data_dir, out_dataset_name, config, files_dict, result_dir,
     discount_cols = [reward_cols[0]+3]
 
     # load txt and generate preprocessed txt
+    #然后遍历文件字典，读取每个文件，并对其进行预处理，包括重命名列、计算对数、处理动作列、添加折扣列等
+    #最后将处理后的数据保存到输出目录，并输出处理完成的消息。
     for i, train_filename in enumerate(files_dict):
 
         try:
@@ -86,12 +88,13 @@ def process_files(in_data_dir, out_dataset_name, config, files_dict, result_dir,
 
     print("Done with ", in_data_dir, " part ", thread_id)
 
-
+    #接受输入数据目录，输出数据集名称和配置文件等参数
 def make_offline_csv(
         in_data_dir: str,
         out_dataset_name: str = 'simplev101', configfile=None):
 
     # convert data in <in_data_dir> to new format and generate data at <out_dataset_name>
+    #将<in_data_dir>中的数据转换为新格式并在<out_dataset_name>处生成数据
 
     num_cores = multiprocessing.cpu_count()
 
@@ -122,7 +125,7 @@ def make_offline_csv(
         result_dir = os.path.join("offline-datasets", out_dataset_name)
 
     os.makedirs(result_dir, exist_ok=True)
-
+    #根据文件字典和线程数量多线程地处理文件，调用了 process_files() 函数。
     threads = []
     valid_threads = num_cores
     if file_index < num_cores:
@@ -140,7 +143,7 @@ def make_offline_csv(
     for thread in threads:
         thread.join()
 
-
+#根据输入的数据集路径或名称，从相应目录中获取文件列表
 def build_dataset(
         dataset_path_or_name: str = None,
         seq_len: int = 2,
@@ -258,7 +261,7 @@ def build_dataset(
     example_ds = example_ds.prefetch(10)
     return example_ds
 
-
+    
 def main():
 
     parser = argparse.ArgumentParser()
@@ -269,7 +272,7 @@ def main():
     # Let argparse parse known flags from sys.argv.
     args, unknown_flags = parser.parse_known_args()
     flags.FLAGS(sys.argv[:1] + unknown_flags)  # Let absl.flags parse the rest.
-
+#解析命令行参数获取输入数据目录和数据集名称，并调用 make_offline_csv() 函数来处理数据集。
     examples = make_offline_csv(
         args.in_data_dir, args.dataset_name, args.config)
 
