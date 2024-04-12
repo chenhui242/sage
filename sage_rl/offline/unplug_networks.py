@@ -21,7 +21,7 @@ import numpy as np
 import sonnet as snt
 import tensorflow as tf
 
-
+#instance_norm_and_elu(x): 这个函数接受一个张量 x，执行了实例归一化（Instance Normalization）和 ELU 激活函数操作。
 def instance_norm_and_elu(x):
   mean = tf.reduce_mean(x, axis=[1, 2], keepdims=True)
   x_ = x - mean
@@ -29,11 +29,11 @@ def instance_norm_and_elu(x):
   x_norm = x_ / (var + 1e-6)
   return tf.nn.elu(x_norm)
 
-
+#ControlNetwork: 这个类表示一个控制网络，用于对观测数据进行编码。它继承自snt.Module。
 class ControlNetwork(snt.Module):
-  """Image, proprio and optionally action encoder used for actors and critics.
+  """Image, proprio and optionally action encoder used for actors and critics.用于演员和评论家的图像、本体和可选的动作编码器。
   """
-
+#控制网络初始化
   def __init__(self,
                proprio_encoder_size: int,
                proprio_keys=None,
@@ -46,6 +46,10 @@ class ControlNetwork(snt.Module):
         Defaults to all observations. Note that if this is specified, any
         observation not contained in proprio_keys will be ignored by the agent.
       activation: Linear layer activation function.
+      proprio_encoder_size：proprio 编码器的线性层的大小。
+      proprio_keys：本体感受观察名称的可选列表。 默认为所有观察结果。 
+      请注意，如果指定了此项，则代理将忽略 proprio_keys 中未包含的任何观察结果。 
+      激活：线性层激活函数。
     """
     super().__init__(name='control_network')
     self._activation = activation
@@ -55,7 +59,7 @@ class ControlNetwork(snt.Module):
 
   def __call__(self, inputs, action: tf.Tensor = None, task=None):
     """Evaluates the ControlNetwork.
-
+        评估控制网络
     Args:
       inputs:  A dictionary of agent observation tensors.
       action:  Agent actions.
@@ -64,7 +68,7 @@ class ControlNetwork(snt.Module):
     Raises:
       ValueError: if neither proprio_input is provided.
       ValueError: if some proprio input looks suspiciously like pixel inputs.
-
+   主要功能是对环境的观测数据进行预处理和编码，最终返回编码后的数据
     Returns:
       Processed network output.
     """
@@ -72,7 +76,7 @@ class ControlNetwork(snt.Module):
       inputs = {'inputs': inputs}
 
     proprio_input = []
-    # By default, treat all observations as proprioceptive.
+    # By default, treat all observations as proprioceptive.默认情况下，将所有观察结果视为本体感受
     if self._proprio_keys is None:
       self._proprio_keys = list(sorted(inputs.keys()))
     for key in self._proprio_keys:
@@ -84,7 +88,7 @@ class ControlNetwork(snt.Module):
             'state: {} with shape {}'.format(
                 key, inputs[key].shape))
 
-    # Append optional action input (i.e. for critic networks).
+    # Append optional action input (i.e. for critic networks).附加可选动作输入（即对于批评者网络）
     if action is not None:
       proprio_input.append(action)
 
