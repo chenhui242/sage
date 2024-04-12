@@ -217,7 +217,7 @@ class RCRRLearner(core.Learner):
         # Cast the additional discount to match the environment discount dtype.用额外的折扣因子来匹配折扣因子的数据类型
         discount = tf.cast(self._discount, dtype=discounts.dtype)
 
-        
+        #初始化批评家损失、策略损失和策略损失系数
         critic_loss = 0.
         policy_loss = 0.
 
@@ -231,14 +231,14 @@ class RCRRLearner(core.Learner):
 
         
 
-        # Initialize recurrent states.
+        # Initialize recurrent states.初始化批评家和策略的循环状态
         critic_state = self._critic_network.initial_state(
             per_device_batch_size)
         target_critic_state = critic_state
         policy_state = self._policy_network.initial_state(
             per_device_batch_size)
         target_policy_state = policy_state
-
+        #在序列中的每个时间步长为t，从网络中获取观察值o_tm1,动作a_tm1，奖励，折扣因子
         with tf.GradientTape(persistent=True) as tape:
             for t in range(1, self._sequence_length):
                 o_tm1 = tree.map_structure(
@@ -254,6 +254,7 @@ class RCRRLearner(core.Learner):
                         o_tm1, a_tm1, target_critic_state)
 
                 # ========================= Critic learning ============================
+                #计算目标评论家的Q值，构造分布预测，并计算损失函数
                 q_tm1, next_critic_state = self._critic_network(o_tm1, a_tm1,
                                                                 critic_state)
                 target_action_distribution, target_policy_state = self._target_policy_network(
@@ -267,12 +268,12 @@ class RCRRLearner(core.Learner):
                 tiled_target_critic_state = tf2_utils.tile_nested(
                     target_critic_state, self._num_action_samples_td_learning)
 
-                # Compute the target critic's Q-value of the sampled actions.
+                # Compute the target critic's Q-value of the sampled actions.计算取样动作的目标评论家的Q值
                 sampled_q_t, _ = snt.BatchApply(self._target_critic_network)(
                     tiled_o_t, sampled_actions_t, tiled_target_critic_state)
 
                 # Compute average logits by first reshaping them to [N, B, A] and then
-                # normalizing them across atoms.
+                # normalizing them across atoms.通过第一次重塑把它们计算为[N,B,A],在原子间归一化
                 
                 new_shape = [
                     self._num_action_samples_td_learning, per_device_batch_size, -1]
@@ -281,7 +282,7 @@ class RCRRLearner(core.Learner):
                 sampled_logprobs = tf.math.log_softmax(sampled_logits, axis=-1)
                 averaged_logits = tf.reduce_logsumexp(sampled_logprobs, axis=0)
 
-                # Construct the expected distributional value for bootstrapping.
+                # Construct the expected distributional value for bootstrapping.构造分布式预测，并计算损失函数
                 q_t = networks.DiscreteValuedDistribution(
                     values=sampled_q_t.values, logits=averaged_logits)
                 critic_loss_t = losses.categorical(
@@ -295,6 +296,7 @@ class RCRRLearner(core.Learner):
 
                 # Compute the estimate of the value function based on
                 # self._num_action_samples_policy_weight samples from the policy.
+                #计算价值函数的估计值self._num_action_samples_policy_weight 来自策略的样本
                 tiled_o_tm1 = tf2_utils.tile_nested(
                     o_tm1, self._num_action_samples_policy_weight)
                 tiled_critic_state = tf2_utils.tile_nested(
@@ -308,6 +310,7 @@ class RCRRLearner(core.Learner):
 
                 # Use mean, min, or max to aggregate Q(s, a_i), a_i ~ pi(s) into the
                 # final estimate of the value function.
+                #使用平均值、最小值或最大值将 Q(s, a_i)、a_i ~ pi(s) 聚合到为价值函数的最终估计。
                 if self._baseline_reduce_function == 'mean':
                     v_tm1_estimate = tf.reduce_mean(tiled_v_tm1, axis=0)
                 elif self._baseline_reduce_function == 'max':
@@ -315,7 +318,8 @@ class RCRRLearner(core.Learner):
                 elif self._baseline_reduce_function == 'min':
                     v_tm1_estimate = tf.reduce_min(tiled_v_tm1, axis=0)
 
-                # Compute the policy loss.
+                # Compute the policy loss.计算策略损失，
+                #根据策略改进模式（policy_improvement_modes）和基线减少函数（reduce_mean）计算策略损失系数（policy_loss_coef_t）
                 assert len(action_distribution_tm1.batch_shape) == 1
                 policy_loss_batch = -action_distribution_tm1.log_prob(a_tm1)
 
@@ -338,12 +342,12 @@ class RCRRLearner(core.Learner):
                 
                 policy_loss_coef += tf.reduce_mean(policy_loss_coef_t)
 
-            
+            #计算平均损失
             critic_loss /= tf.cast(self._sequence_length, dtype=dtype)
             policy_loss /= tf.cast(self._sequence_length, dtype=dtype)
             policy_loss_coef /= tf.cast(self._sequence_length, dtype=dtype)
 
-        # Compute gradients.
+        # Compute gradients.计算梯度
         critic_gradients = tape.gradient(critic_loss,
                                          self._critic_network.trainable_variables)
         policy_gradients = tape.gradient(policy_loss,
@@ -362,12 +366,12 @@ class RCRRLearner(core.Learner):
             policy_gradients = tf.clip_by_global_norm(policy_gradients, self._max_grad_norm)[0]
             critic_gradients = tf.clip_by_global_norm(critic_gradients, self._max_grad_norm)[0]
 
-        # Apply gradients.
+        # Apply gradients.应用梯度
         self._critic_optimizer.apply(critic_gradients,
                                      self._critic_network.trainable_variables)
         self._policy_optimizer.apply(policy_gradients,
                                      self._policy_network.trainable_variables)
-
+        #定期更新目标网络，以便在深度强化学习算法中保持目标网络与原始网络的同步
         source_variables = (
             self._critic_network.variables + self._policy_network.variables)
         target_variables = (
@@ -379,13 +383,13 @@ class RCRRLearner(core.Learner):
             for src, dest in zip(source_variables, target_variables):
                 dest.assign(src)
         self._num_steps.assign_add(1)
-
+        #返回返回评论家损失、策略损失和策略损失系数作为字典
         return {
             'critic_loss': critic_loss,
             'policy_loss': policy_loss,
             'policy_loss_coef': policy_loss_coef,
         }
-
+        #将该方法标记为TensorFlow计算图的一部分，以提高执行效率。
     @tf.function
     def _replicated_step(self) -> Dict[str, tf.Tensor]:
         sample = next(self._iterator)
@@ -395,7 +399,7 @@ class RCRRLearner(core.Learner):
             k: self._accelerator_strategy.reduce(mean, fetches[k], axis=None)
             for k in fetches
         }
-
+        #step() 方法主要用于执行训练步骤，包括运行模型和更新日志、检查点等操作
     def step(self):
         # Run the learning step.
         with self._accelerator_strategy.scope():
@@ -413,6 +417,6 @@ class RCRRLearner(core.Learner):
             self._checkpointer.save()
             
         self._logger.write(fetches)
-
+        #get_variables() 方法则用于获取指定名称的变量的值。
     def get_variables(self, names: List[str]) -> List[List[np.ndarray]]:
         return [tf2_utils.to_numpy(self._variables[name]) for name in names]
