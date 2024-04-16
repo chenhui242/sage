@@ -196,7 +196,7 @@ class TCP_dmEnv_Wrapper(dm_env.Environment):
 
     def _convert_timestep(self, ts):
         return ts._replace(discount=np.array(ts.discount, copy=False, dtype=np.float32))
-    
+    #step0 方法用于在环境中执行一个动作，并获取新的状态、延迟、奖励以及可能出现的错误代码。
     def step0(self, action, eval_=False):
         s1, delay_, rew0, error_code = self.get_state(evaluation=eval_)
 
